@@ -3,68 +3,68 @@ import { useEffect, useState } from 'react'
 import * as Papa from 'papaparse'
 
 function App() {
-  // This state will store the final sum of the "consumption" column
   const [consumption, setConsumption] = useState<number | null>(null)
+  const [production, setProduction] = useState<number | null>(null)
 
   useEffect(() => {
-    // Parse the CSV file when the component loads
     Papa.parse('/H1_Wh (1).csv', {
-      download: true,        // Fetch the CSV from the server
-      header: true,          // Treat the first row as column names
-      dynamicTyping: true,   // Convert numeric strings into real numbers
-      skipEmptyLines: true,  // Ignore blank rows
-
+      download: true,
+      header: true,
+      dynamicTyping: true,
+      skipEmptyLines: true,
       complete: (results) => {
-        // All rows from the CSV are now available here
         const rows = results.data as Array<Record<string, any>>
-
-        // If the CSV is empty, stop early
-        if (rows.length === 0) {
-          setConsumption(null)
-          return
+        
+        // Find the column key that contains 'consumption' (case-insensitive)
+        let consumptionKey: string | undefined
+        // Find the column key that contains 'production' (case-insensitive)
+        let productionKey: string | undefined
+        
+        if (rows.length > 0) {
+          const sample = rows[0]
+          consumptionKey = Object.keys(sample).find(k => k && k.toLowerCase().includes('consumption'))
+          productionKey = Object.keys(sample).find(k => k && k.toLowerCase().includes('production'))
         }
 
-        // Look at the first row to detect which column contains "consumption"
-        const firstRow = rows[0]
-
-        // Find a column name that includes the word "consumption" (case-insensitive)
-        const keyName = Object.keys(firstRow).find(key =>
-          key.toLowerCase().includes('consumption')
-        )
-
-        // If no matching column is found, stop
-        if (!keyName) {
-          setConsumption(null)
-          return
-        }
-
-        // Sum all values in the detected column
-        const total = rows.reduce((sum, row) => {
-          const value = row[keyName]
-
-          // Ensure the value is a number (convert if needed)
-          const numberValue =
-            typeof value === 'number' ? value : parseFloat(String(value))
-
-          // Add only valid numbers
-          return sum + (isFinite(numberValue) ? numberValue : 0)
+        // Calculate consumption sum
+        const consumptionSum = rows.reduce((acc, row) => {
+          if (!consumptionKey) return acc
+          const v = row[consumptionKey]
+          const n = typeof v === 'number' ? v : parseFloat(String(v))
+          return acc + (isFinite(n) ? n : 0)
         }, 0)
 
-        // Save the final sum into React state
-        setConsumption(total)
-      },
+        // Calculate production sum
+        const productionSum = rows.reduce((acc, row) => {
+          if (!productionKey) return acc
+          const v = row[productionKey]
+          const n = typeof v === 'number' ? v : parseFloat(String(v))
+          return acc + (isFinite(n) ? n : 0)
+        }, 0)
 
-      // If something goes wrong, set consumption to null
-      error: () => setConsumption(null),
+        setConsumption(consumptionSum)
+        setProduction(productionSum)
+      },
+      error: () => {
+        setConsumption(null)
+        setProduction(null)
+      },
     })
   }, [])
 
   return (
     <div className="app-root">
       <div className="app-layout">
-        <aside className="consumption-grid" aria-label="Consumption">
-          <div className="consumption-title">Consumption</div>
-          <div className="consumption-value">{consumption === null ? '— kWh' : `${consumption.toFixed(2)} kWh`}</div>
+        <aside className="sidebar">
+          <div className="consumption-grid" aria-label="Consumption">
+            <div className="consumption-title">Consumption</div>
+            <div className="consumption-value">{consumption === null ? '— kWh' : `${consumption.toFixed(2)} kWh`}</div>
+          </div>
+
+          <div className="production-grid" aria-label="Production">
+            <div className="production-title">Production</div>
+            <div className="production-value">{production === null ? '— kWh' : `${production.toFixed(2)} kWh`}</div>
+          </div>
         </aside>
 
         <main className="main-content">
@@ -72,8 +72,6 @@ function App() {
         </main>
       </div>
     </div>
-
-
   )
 }
 
